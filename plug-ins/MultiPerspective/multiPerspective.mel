@@ -1,0 +1,47 @@
+
+proc perform(int $index, string $node)
+{
+  string $outfile = "C:/dev/out"+$index+".png";
+  showHidden -a -b $node;
+  string $results[] = `multiPerspective -f $outfile`;
+  hide $results[0];
+  HideAll;
+
+  print $results;
+
+  string $shader = `shadingNode -asShader lambert`;
+  string $sg = `sets -renderable true -noSurfaceShader true -empty -name mpSG`;
+  select $results[0];
+  sets -e -forceElement $sg;
+  connectAttr -f ($shader+".outColor") ($sg+".surfaceShader");
+
+  string $texture = `createNode file`;
+  connectAttr ($texture+".outColor") ($shader+".color");
+  connectAttr ($texture+".outTransparency") ($shader+".transparency");
+  setAttr -type "string" ($texture+".fileTextureName") $outfile;
+
+  float $depth = $results[1];
+  move -r 0 $depth 0 $results[0];
+}
+
+
+global proc multiPerspectiveTool()
+{
+  string $sel[] = `ls -sl`;
+  string $nodes[] = `listRelatives -f $sel`;
+  print $nodes;
+
+  HideAll;
+
+  $index = 0;
+  for ($node in $nodes) {
+    perform($index, $node);
+    $index++;
+  }
+
+  ShowAll;
+
+  select $sel;
+}
+
+multiPerspectiveTool();
