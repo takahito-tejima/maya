@@ -2,8 +2,9 @@
 proc perform(int $index, string $node)
 {
   string $outfile = "C:/dev/out"+$index+".png";
+  string $scriptfile = "C:/dev/script"+$index+".jsx";
   showHidden -a -b $node;
-  string $results[] = `multiPerspective -f $outfile`;
+  string $results[] = `multiPerspective -f $outfile -s $scriptfile`;
   hide $results[0];
   HideAll;
 

@@ -175,14 +175,22 @@ MultiPerspective::doIt(const MArgList &args)
 
 	MSyntax syntax;
 	syntax.addFlag("f", "file", MSyntax::kString);
+	syntax.addFlag("s", "script", MSyntax::kString);
 	MArgDatabase argDB(syntax, args);
 
+	MString filename;
+	MString scriptfile;
 	if (!argDB.isFlagSet("f")) {
 		MGlobal::displayError("please specify output file : -f <filename.png>");
 		return MS::kFailure;
 	}
-	MString filename;
+	if (!argDB.isFlagSet("s")) {
+		MGlobal::displayError("please specify output AE script file : -s <filename.jsx>");
+		return MS::kFailure;
+	}
+
 	argDB.getFlagArgument("f", 0, filename);
+	argDB.getFlagArgument("s", 0, scriptfile);
 
 	MTime start = MAnimControl::animationStartTime();
 	MTime end = MAnimControl::animationEndTime();
@@ -402,6 +410,7 @@ MultiPerspective::doIt(const MArgList &args)
 
 	char cmdline[1024];
 
+	FILE *fp = fopen(scriptfile.asChar(), "w");
 
 	MVector c = bbox.center();
 
@@ -411,6 +420,9 @@ MultiPerspective::doIt(const MArgList &args)
 
 	MAnimControl::setCurrentTime(start);
 	view.refresh(true, true);
+
+	fprintf(fp, "var layer = app.project.activeItem.layers[1];\n");
+	fprintf(fp, "layer(\"position\").setValue([%d, %d]);\n", 960, 540);
 
 	for (int i = 0; i < (int)matrices.length(); i++)
 	{
@@ -436,6 +448,25 @@ MultiPerspective::doIt(const MArgList &args)
 		MGlobal::executeCommand(cmdline);
 
 		MGlobal::executeCommand(setKeyCmd);
+
+		{
+			MPoint center = (uv0 + uv1 + uv2 + uv3)/4.0;
+			float x = (1-center.x) * g_width;
+			float y = (1-center.y) * g_height;
+			MTransformationMatrix tmat(mat);
+			double rot[3] = {0, 0, 0};
+			double scale[3] = {0, 0, 0};
+			MTransformationMatrix::RotationOrder ro = MTransformationMatrix::kXYZ;
+			tmat.getRotation(rot, ro, MSpace::kWorld);
+			tmat.getScale(scale, MSpace::kWorld);
+			double r = rot[2] * 360.0 / 2.0 / M_PI;
+			double s = 100 * len.x;
+			s = 150.0;
+			double time = i/24.0;
+			fprintf(fp, "layer(\"anchorPoint\").setValueAtTime(%f, [%f, %f]);\n", time, x, y);
+			fprintf(fp, "layer(\"rotation\").setValueAtTime(%f, [%f]);\n", time, -r);
+			fprintf(fp, "layer(\"scale\").setValueAtTime(%f, [%f, %f]);\n", time, s, s);
+		}
 
 
 		MAnimControl::setCurrentTime(start + i);
@@ -511,6 +542,8 @@ MultiPerspective::doIt(const MArgList &args)
 	image.setPixels(pixels, g_width, g_height);
 
 	image.writeToFile(filename.asChar(), "png");
+
+	fclose(fp);
 
 	delete [] pixels;
 
